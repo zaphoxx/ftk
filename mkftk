@@ -3,6 +3,7 @@
 # Description: basic script to make your own little forensic toolkit (trusted toolkit)
 # Requirements: mkisofs, tee, md5sum, sha1sum, sha256sum
 # Author: zaphoxx (Manfred Heinz)
+# Date: 08/18/2018
 echo "-------------------------------------"
 echo "-                                   -"
 echo "--- mkfts - make forensic toolkit ---"
