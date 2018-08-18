@@ -1,0 +1,130 @@
+#!/bin/bash
+# Name: mkftk
+# Description: basic script to make your own little forensic toolkit (trusted toolkit)
+# Requirements: mkisofs, tee, md5sum, sha1sum, sha256sum
+# Author: zaphoxx (Manfred Heinz)
+echo "-------------------------------------"
+echo "-                                   -"
+echo "--- mkfts - make forensic toolkit ---"
+echo "-                                   -"
+echo "-------------------------------------"
+echo ""
+
+ROOT="./FTK"
+BIN="$ROOT/bin"
+LIB="$ROOT/lib"
+TOOLS="ROOT/tools"
+BINLIST="$1"
+ISO="FTK.iso"
+HASHFILE="hashes"
+
+# create the basic directory structure
+createDirStructure ()
+{
+	if [ -d $ROOT ];
+		then 
+		echo "[!] Folder '$ROOT' already exists!";
+		echo "[!] Please remove folder or update ROOT variable with a different name";
+		usage;
+		exit 1
+	else
+		echo "[+] creating directory structure '$ROOT'";
+		mkdir $ROOT;
+		mkdir $BIN;
+		mkdir $LIB;
+		#ls -ldr $ROOT;
+	fi
+}
+
+# copy the desired binary files into the BIN folder
+# binary files are defined in the BINLIST file
+cpBinaries () 
+{
+	if [ -e $BINLIST ]; then 
+		echo "[!] File '$BINLIST' exists.";
+		echo "[+] cp binaries to FTK folder";
+		cp $(which $(cat "$BINLIST")) $BIN;
+		#ls -l $BIN;
+	else
+		echo "[!] File '$BINLIST' not found!"
+	fi
+}
+
+# copy the necessary dynamic link libraries into the LIB folder
+cpLibraries ()
+{
+	echo "[+] cp libraries to FTK folder."
+	ldd $BIN/* | grep "/lib/" | sed -e "s/.*\(\/lib\/[^ ]*\).*/cp \1 .\/FTK\/lib\/ 2>\/dev\/null/" | sh;
+	#ls -l $LIB;
+}
+
+# create an archive file for later use
+mktarfile ()
+{
+	if [ -d $ROOT ]; then
+		echo "[+] creating tar archive."
+		tar -cf "$ROOT.tar" "$ROOT/*"
+	fi
+}
+
+# create a simple iso image which can be put on cd or usb
+mkisoimage () {
+	if [ -d $ROOT ]; then
+		echo "[+] creating iso image '$ISO' of folder '$ROOT'." 
+		mkisofs -o $ISO $ROOT;
+	else
+		echo "[!] FTK folder '$ROOT' does not exist!"
+		usage;
+		exit 1;
+	fi
+}
+
+# create md5,sha1,sha256 hashes for archive file and iso image
+createHashes ()
+{
+	if [[ -e $ISO && -e "$ROOT.tar" ]]; then
+		MD5=$(md5sum $ISO)
+		echo "MD5: $MD5" | tee $HASHFILE
+		SH1=$(sha1sum "$ISO")
+		echo "SHA1: $SH1" | tee -a $HASHFILE
+		SH256=$(sha256sum "$ISO")
+		echo "SHA256: $SH256" | tee -a $HASHFILE
+		MD5=$(md5sum $ROOT.tar)
+		echo "MD5: $MD5" | tee $HASHFILE
+		SH1=$(sha1sum "$ROOT.tar")
+		echo "SHA1: $SH1" | tee -a $HASHFILE
+		SH256=$(sha256sum "$ROOT.tar")
+		echo "SHA256: $SH256" | tee -a $HASHFILE
+	else
+		echo "[!] iso image '$ISO' does not exist in the current folder!"
+		exit 1
+	fi
+}
+
+usage ()
+{
+	echo "--------------------------------------------------------------"
+	echo "[usage] ./mkftk BINARYLIST"
+	echo ""
+	echo "BINARYLIST - file with list of binaries you want to copy over!"
+	echo "--------------------------------------------------------------"
+	echo "ROOT = $ROOT"
+	echo "BIN = $BIN"
+	echo "LIB = $LIB"
+	echo "ISO = $ISO"
+	echo "TAR = $ROOT.tar"
+	echo "BINLIST = $BINLIST"
+	echo -e $(cat $BINLIST)
+	echo "--------------------------------------------------------------"
+}
+
+
+if [ -z $1 ] ; then usage;
+else
+	createDirStructure;
+	cpBinaries;
+	cpLibraries;
+	mktarfile;
+	mkisoimage;
+	createHashes;
+fi
